@@ -10,6 +10,9 @@ import {
   ShieldCheck,
   UploadCloud,
   X,
+  Link,
+  Video,
+  Mic,
 } from "lucide-react";
 
 import { analyzeImage, type AnalysisResult } from "@/app/actions";
@@ -20,11 +23,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type AnalysisState = "animating" | "idle" | "analyzing" | "results" | "error";
 type AnalysisStep = "deepfake" | "history" | "ela" | "exif" | "report";
+type InputType = "image" | "video" | "audio" | "url";
 
 const analysisSteps: {
   key: AnalysisStep;
@@ -45,6 +51,8 @@ export default function Home() {
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [inputType, setInputType] = useState<InputType>("image");
+  const [url, setUrl] = useState("");
   const { toast } = useToast();
 
   const handleImageUpload = (file: File) => {
@@ -92,10 +100,48 @@ export default function Home() {
   };
 
   const startAnalysis = async () => {
-    if (!imageDataUri) return;
+    let dataUri: string | null = imageDataUri;
+
+    if (inputType === 'url') {
+      if (!url) {
+        toast({ variant: 'destructive', title: 'URL required', description: 'Please enter a URL to analyze.' });
+        return;
+      }
+      // Simulate fetching and converting URL to data URI for analysis
+      // In a real scenario, this might be handled by the server action
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) {
+            toast({ variant: 'destructive', title: 'Invalid URL Content', description: 'The URL does not point to a valid image.' });
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            dataUri = e.target?.result as string;
+            setImagePreview(dataUri);
+            setImageDataUri(dataUri);
+            analyze(dataUri);
+        };
+        reader.readAsDataURL(blob);
+        return; // analysis will be called in the reader.onload
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Failed to fetch URL', description: 'Could not fetch the image from the provided URL.' });
+        return;
+      }
+    }
+    
+    if (!dataUri) {
+      toast({ variant: 'destructive', title: 'No image selected', description: 'Please upload an image or provide a URL.' });
+      return;
+    };
+    analyze(dataUri);
+  };
+
+  const analyze = async (dataUri: string) => {
     setAnalysisState("analyzing");
     try {
-      const result = await analyzeImage(imageDataUri);
+      const result = await analyzeImage(dataUri);
       setAnalysisResult(result);
       setAnalysisState("results");
     } catch (error) {
@@ -108,14 +154,26 @@ export default function Home() {
       });
       resetState();
     }
-  };
+  }
 
   const resetState = useCallback(() => {
     setAnalysisState("idle");
     setImagePreview(null);
     setImageDataUri(null);
     setAnalysisResult(null);
+    setUrl("");
   }, []);
+
+  const clearPreview = () => {
+    setImagePreview(null);
+    setImageDataUri(null);
+    if(inputType === 'url') setUrl('');
+  }
+
+  useEffect(() => {
+    resetState();
+  }, [inputType, resetState]);
+
 
   if (analysisState === "animating") {
     return (
@@ -135,66 +193,131 @@ export default function Home() {
       </header>
       <main className="container mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="flex flex-col gap-4 items-center justify-center">
-            {imagePreview ? (
-              <Card className="w-full max-w-lg mx-auto">
-                <CardContent className="p-4 relative aspect-video">
-                  <Image
-                    src={imagePreview}
-                    alt="Uploaded image preview"
-                    fill
-                    className="object-contain rounded-md"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 bg-background/50 hover:bg-background/80 rounded-full h-8 w-8"
-                    onClick={() => { setImagePreview(null); setImageDataUri(null); }}
-                    disabled={analysisState === "analyzing"}
+          <div className="flex flex-col gap-4 items-center justify-start">
+            <Tabs value={inputType} onValueChange={(v) => setInputType(v as InputType)} className="w-full max-w-lg">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="image"><UploadCloud className="mr-2 h-4 w-4" />Image</TabsTrigger>
+                <TabsTrigger value="video" disabled><Video className="mr-2 h-4 w-4" />Video</TabsTrigger>
+                <TabsTrigger value="audio" disabled><Mic className="mr-2 h-4 w-4" />Audio</TabsTrigger>
+                <TabsTrigger value="url"><Link className="mr-2 h-4 w-4" />URL</TabsTrigger>
+              </TabsList>
+              <TabsContent value="image" className="mt-4">
+                {imagePreview ? (
+                  <Card className="w-full max-w-lg mx-auto">
+                    <CardContent className="p-4 relative aspect-video">
+                      <Image
+                        src={imagePreview}
+                        alt="Uploaded image preview"
+                        fill
+                        className="object-contain rounded-md"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 bg-background/50 hover:bg-background/80 rounded-full h-8 w-8"
+                        onClick={clearPreview}
+                        disabled={analysisState === "analyzing"}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <label
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={cn(
+                      "flex flex-col items-center justify-center w-full max-w-lg h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary transition-colors",
+                      isDragging && "border-primary bg-accent/20"
+                    )}
                   >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <label
-                onDragEnter={handleDragEnter}
-                onDragOver={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={cn(
-                  "flex flex-col items-center justify-center w-full max-w-lg h-64 border-2 border-dashed rounded-lg cursor-pointer bg-card hover:bg-secondary transition-colors",
-                  isDragging && "border-primary bg-accent/20"
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
+                      <p className="mb-2 text-sm text-muted-foreground">
+                        <span className="font-semibold">Click to upload</span> or drag and
+                        drop
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PNG, JPG, or WEBP
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      accept="image/png, image/jpeg, image/webp"
+                    />
+                  </label>
                 )}
-              >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    <span className="font-semibold">Click to upload</span> or drag and
-                    drop
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PNG, JPG, or WEBP
-                  </p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  accept="image/png, image/jpeg, image/webp"
-                />
-              </label>
-            )}
-            <div className="flex gap-4">
+              </TabsContent>
+              <TabsContent value="video" className="mt-4 text-center text-muted-foreground">
+                <Card className="flex flex-col items-center justify-center h-64 border-2 border-dashed">
+                  <Video className="w-10 h-10 mb-3" />
+                  <p>Video analysis coming soon!</p>
+                </Card>
+              </TabsContent>
+               <TabsContent value="audio" className="mt-4 text-center text-muted-foreground">
+                <Card className="flex flex-col items-center justify-center h-64 border-2 border-dashed">
+                  <Mic className="w-10 h-10 mb-3" />
+                  <p>Audio analysis coming soon!</p>
+                </Card>
+              </TabsContent>
+              <TabsContent value="url" className="mt-4">
+                 {imagePreview ? (
+                  <Card className="w-full max-w-lg mx-auto">
+                    <CardContent className="p-4 relative aspect-video">
+                      <Image
+                        src={imagePreview}
+                        alt="URL image preview"
+                        fill
+                        className="object-contain rounded-md"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 bg-background/50 hover:bg-background/80 rounded-full h-8 w-8"
+                        onClick={clearPreview}
+                        disabled={analysisState === "analyzing"}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="w-full max-w-lg mx-auto">
+                    <CardHeader>
+                      <CardTitle>Analyze Image from URL</CardTitle>
+                      <CardDescription>Enter the URL of an image to begin the analysis.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2">
+                           <Link className="h-5 w-5 text-muted-foreground" />
+                           <Input
+                            type="url"
+                            placeholder="https://example.com/image.png"
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            disabled={analysisState === "analyzing"}
+                          />
+                        </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+            
+            <div className="flex gap-4 mt-4">
               <Button
                 size="lg"
                 onClick={startAnalysis}
-                disabled={!imagePreview || analysisState === "analyzing"}
+                disabled={analysisState === "analyzing" || (inputType === 'image' && !imagePreview) || (inputType === 'url' && !url && !imagePreview)}
               >
                 {analysisState === "analyzing" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                Analyze Image
+                Analyze
               </Button>
               <Button
                 size="lg"
@@ -212,8 +335,8 @@ export default function Home() {
               <CardHeader>
                 <CardTitle>Analysis Report</CardTitle>
                 <CardDescription>
-                  {analysisState === 'idle' && "Upload an image to begin analysis."}
-                  {analysisState === 'analyzing' && "AI is analyzing your image. Please wait..."}
+                  {analysisState === 'idle' && "Select an input method and provide media to begin analysis."}
+                  {analysisState === 'analyzing' && "AI is analyzing your media. Please wait..."}
                   {analysisState === 'results' && "Your comprehensive trust report is ready."}
                 </CardDescription>
               </CardHeader>
