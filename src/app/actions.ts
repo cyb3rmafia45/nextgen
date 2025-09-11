@@ -12,6 +12,7 @@ import {
   generateTrustReport,
   type GenerateTrustReportOutput,
 } from "@/ai/flows/generate-trust-report";
+import fetch from "node-fetch";
 
 export type AnalysisResult = {
   deepfake: DetectDeepfakeOutput;
@@ -127,12 +128,12 @@ export async function analyzeUrl(url: string): Promise<AnalysisResult> {
     if (!response.ok) {
       throw new Error(`Failed to fetch image. Status: ${response.status}`);
     }
-    const blob = await response.blob();
-    if (!blob.type.startsWith("image/")) {
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.startsWith("image/")) {
       throw new Error("URL does not point to a valid image.");
     }
-    const buffer = Buffer.from(await blob.arrayBuffer());
-    photoDataUri = `data:${blob.type};base64,${buffer.toString("base64")}`;
+    const buffer = await response.buffer();
+    photoDataUri = `data:${contentType};base64,${buffer.toString("base64")}`;
   } catch (error) {
     console.error("Error fetching URL for analysis:", error);
     throw new Error("Could not fetch and process the image from the provided URL.");
