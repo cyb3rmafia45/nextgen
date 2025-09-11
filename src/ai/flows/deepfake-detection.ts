@@ -40,14 +40,19 @@ const prompt = ai.definePrompt({
   name: 'detectDeepfakePrompt',
   input: {schema: DetectDeepfakeInputSchema},
   output: {schema: DetectDeepfakeOutputSchema},
-  prompt: `You are an expert in detecting deepfake images. Analyze the provided image and determine if it is a deepfake.
+  prompt: `You are an expert in detecting deepfake, morphed, or AI-generated images. Analyze the provided image and determine if it has been manipulated.
 
   Photo: {{media url=photoDataUri}}
 
   Respond with a boolean value for isDeepfake, a confidence score between 0 and 1, and an explanation of your reasoning.
-  Consider factors such as inconsistencies in lighting, unnatural textures, and unusual facial features.
-  If the image is not a deepfake, provide an explanation as to why it is likely authentic.
-  Be concise and specific in your explanation.
+  Consider factors such as:
+  - Inconsistencies in lighting, shadows, and reflections.
+  - Unnatural skin textures, hair, or facial features.
+  - Blurring or artifacts at the edges of objects.
+  - Watermarks or logos from AI image generation tools (e.g., DALL-E, Midjourney, Pica AI).
+  - Signs of image morphing or face-swapping.
+
+  If the image appears authentic, explain why. Be concise and specific in your explanation.
   `,
 });
 
