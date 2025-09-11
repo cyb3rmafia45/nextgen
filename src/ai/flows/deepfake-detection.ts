@@ -46,16 +46,19 @@ const prompt = ai.definePrompt({
   Photo: {{media url=photoDataUri}}
 
   Respond with a boolean value for isDeepfake, a confidence score between 0 and 1, and an explanation of your reasoning.
-  Consider factors such as:
+  
+  **CRITICAL INSTRUCTION:** Pay very close attention to watermarks. The presence of a watermark from an AI image generation tool (e.g., "DALL-E", "Midjourney", "Stable Diffusion", "Pica AI", etc.) is definitive proof that the image is AI-generated. If you find such a watermark, you MUST set 'isDeepfake' to true and your confidence to a high value (e.g., 0.95 or higher).
+
+  Consider the following factors:
+  - Watermarks or logos from AI image generation tools. This is the most important factor.
   - Inconsistencies in lighting, shadows, and reflections.
   - Unnatural skin textures, hair, or facial features.
   - Blurring or artifacts at the edges of objects.
-  - Watermarks or logos from AI image generation tools (e.g., DALL-E, Midjourney, Pica AI).
   - Signs of image morphing or face-swapping.
   
-  If you determine the image is AI-generated, try to identify the model or tool used (e.g., Midjourney, DALL-E, Stable Diffusion, Pica AI) and include it in the 'identifiedModel' field. Look for characteristic styles, artifacts, or watermarks.
+  If you determine the image is AI-generated, identify the model or tool used (e.g., Midjourney, DALL-E, Stable Diffusion, Pica AI) and include it in the 'identifiedModel' field.
 
-  If the image appears authentic, explain why. Be concise and specific in your explanation.
+  If the image appears authentic, explain why, but only after you have exhaustively checked for any signs of manipulation, especially watermarks.
   `,
 });
 
