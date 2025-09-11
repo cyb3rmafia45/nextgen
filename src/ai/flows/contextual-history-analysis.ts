@@ -18,8 +18,16 @@ const ContextualHistoryAnalysisInputSchema = z.object({
 });
 export type ContextualHistoryAnalysisInput = z.infer<typeof ContextualHistoryAnalysisInputSchema>;
 
+const SightingSchema = z.object({
+  source: z.string().describe('The website or platform where the image was found (e.g., "example.com", "Twitter").'),
+  date: z.string().optional().describe('The approximate date the image appeared in YYYY-MM-DD format, if available. If not, this can be omitted.'),
+  context: z.string().describe('A brief summary of how the image was used in that context.'),
+  isOriginalSource: z.boolean().optional().describe('Set to true if this appears to be the original source of the image.'),
+});
+
 const ContextualHistoryAnalysisOutputSchema = z.object({
-  searchResults: z.string().describe('The search results of where else the image has appeared online.'),
+  summary: z.string().describe('A one-sentence summary of the image\'s online history.'),
+  sightings: z.array(SightingSchema).describe('A list of places where the image has been found online. Return at least 3-5 mock examples.'),
 });
 export type ContextualHistoryAnalysisOutput = z.infer<typeof ContextualHistoryAnalysisOutputSchema>;
 
@@ -33,15 +41,17 @@ const prompt = ai.definePrompt({
   name: 'contextualHistoryAnalysisPrompt',
   input: {schema: ContextualHistoryAnalysisInputSchema},
   output: {schema: ContextualHistoryAnalysisOutputSchema},
-  prompt: `You are an expert investigator specializing in detecting image misuse.
+  prompt: `You are an expert investigator specializing in tracing the origins and usage of images online.
 
-You will perform a reverse image search to identify where else the image has appeared online. You will analyze the search results and summarize your findings in a report.
+You will perform a reverse image search to identify where else the image has appeared online. You will analyze the search results and summarize your findings.
+
+For the output, provide a list of sightings. Each sighting should include the source (website), the approximate date of appearance, and the context of its use. If you can determine the original source, mark it accordingly. Generate at least 3-5 distinct and realistic mock examples for the timeline.
 
 Analyze the following image:
 
 Image: {{media url=photoDataUri}}
 
-Report:`,
+`,
 });
 
 const contextualHistoryAnalysisFlow = ai.defineFlow(

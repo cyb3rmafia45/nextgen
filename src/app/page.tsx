@@ -10,10 +10,12 @@ import {
   ShieldCheck,
   UploadCloud,
   X,
+  Info
 } from "lucide-react";
 
 import { analyzeImage, type AnalysisResult } from "@/app/actions";
 import { AppLogo } from "@/components/app-logo";
+import { ContextualHistoryTimeline } from "@/components/contextual-history-timeline";
 import OpeningAnimation from "@/components/opening-animation";
 import { TrustScoreGauge } from "@/components/trust-score-gauge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -22,21 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type AnalysisState = "animating" | "idle" | "analyzing" | "results" | "error";
-type AnalysisStep = "deepfake" | "history" | "ela" | "exif" | "report";
-
-const analysisSteps: {
-  key: AnalysisStep;
-  label: string;
-  icon: React.ElementType;
-}[] = [
-  { key: "deepfake", label: "Detecting Deepfake", icon: ShieldCheck },
-  { key: "history", label: "Analyzing Contextual History", icon: History },
-  { key: "ela", label: "Performing Error Level Analysis", icon: ScanSearch },
-  { key: "exif", label: "Extracting Metadata", icon: FileCheck2 },
-  { key: "report", label: "Generating Trust Report", icon: Loader2 },
-];
 
 export default function Home() {
   const [analysisState, setAnalysisState] =
@@ -143,6 +133,7 @@ export default function Home() {
   }
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-background">
       <header className="p-4 border-b">
         <div className="container mx-auto flex items-center gap-2">
@@ -241,13 +232,9 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 {analysisState === 'analyzing' && (
-                  <div className="space-y-4 pt-4">
-                    {analysisSteps.map((step) => (
-                      <div key={step.key} className="flex items-center gap-3">
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                        <span className="text-foreground">{step.label}</span>
-                      </div>
-                    ))}
+                  <div className="flex flex-col items-center justify-center h-full pt-12">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    <p className="mt-4 text-muted-foreground">Analyzing...</p>
                   </div>
                 )}
                 {analysisState === 'results' && analysisResult && (
@@ -262,52 +249,92 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="details">
-                        <AccordionTrigger>View Detailed Analysis</AccordionTrigger>
-                        <AccordionContent className="space-y-4 pt-4">
-                          <div className="flex justify-between items-center p-3 rounded-md bg-secondary">
-                            <div className="flex items-center gap-3">
-                              <ShieldCheck className="h-5 w-5 text-primary" />
-                              <span className="font-medium">Deepfake Detection</span>
-                            </div>
+                    <Accordion type="single" collapsible className="w-full" defaultValue="history">
+                      <AccordionItem value="deepfake">
+                        <AccordionTrigger>
+                          <div className="flex items-center gap-3">
+                            <ShieldCheck className="h-5 w-5 text-primary" />
+                            <span className="font-medium">Deepfake Detection</span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-2 pt-2">
+                           <div className="flex justify-between items-center px-3">
+                            <span className="text-sm text-muted-foreground">Assessment</span>
                             <Badge variant={analysisResult.deepfake.isDeepfake ? "destructive" : "default"}>
                               {analysisResult.deepfake.isDeepfake ? "Likely Deepfake" : "Likely Authentic"}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground px-3">{analysisResult.deepfake.explanation}</p>
-
-                          <div className="flex justify-between items-center p-3 rounded-md bg-secondary">
-                            <div className="flex items-center gap-3">
-                              <History className="h-5 w-5 text-primary" />
-                              <span className="font-medium">Contextual History</span>
-                            </div>
+                          <p className="text-sm text-muted-foreground px-3 pt-2">{analysisResult.deepfake.explanation}</p>
+                        </AccordionContent>
+                      </AccordionItem>
+                      
+                      <AccordionItem value="history">
+                        <AccordionTrigger>
+                          <div className="flex items-center gap-3">
+                            <History className="h-5 w-5 text-primary" />
+                            <span className="font-medium">Contextual History</span>
                           </div>
-                          <p className="text-sm text-muted-foreground px-3">{analysisResult.contextualHistory.searchResults}</p>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <p className="text-sm text-muted-foreground px-3 pb-4">{analysisResult.contextualHistory.summary}</p>
+                          <ContextualHistoryTimeline sightings={analysisResult.contextualHistory.sightings} />
+                        </AccordionContent>
+                      </AccordionItem>
 
-                          <div className="flex justify-between items-center p-3 rounded-md bg-secondary">
-                            <div className="flex items-center gap-3">
+                      <AccordionItem value="ela">
+                        <AccordionTrigger>
+                           <div className="flex items-center gap-3">
                               <ScanSearch className="h-5 w-5 text-primary" />
                               <span className="font-medium">Error Level Analysis (ELA)</span>
                             </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-2 pt-2">
+                          <div className="flex justify-between items-center px-3">
+                            <span className="text-sm text-muted-foreground">Assessment</span>
                             <Badge variant={analysisResult.ela.suspicious ? "destructive" : "default"}>
-                              {analysisResult.ela.suspicious ? "Suspicious" : "Looks Clean"}
+                              {analysisResult.ela.suspicious ? "Suspicious Areas Found" : "Looks Clean"}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground px-3">{analysisResult.ela.summary}</p>
-                          
-                          <div className="flex justify-between items-center p-3 rounded-md bg-secondary">
-                            <div className="flex items-center gap-3">
+                          <p className="text-sm text-muted-foreground px-3 pt-2">{analysisResult.ela.summary}</p>
+                        </AccordionContent>
+                      </AccordionItem>
+
+                       <AccordionItem value="exif">
+                        <AccordionTrigger>
+                           <div className="flex items-center gap-3">
                               <FileCheck2 className="h-5 w-5 text-primary" />
                               <span className="font-medium">Metadata (EXIF)</span>
                             </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="space-y-4 pt-4">
+                          <div className="flex justify-between items-center px-3 pb-2">
+                            <span className="text-sm text-muted-foreground">Assessment</span>
                             <Badge variant={analysisResult.exif.suspicious ? "destructive" : "default"}>
-                              {analysisResult.exif.suspicious ? "Indicates Editing" : "No Issues"}
+                              {analysisResult.exif.suspicious ? "Indicates Editing" : "No Issues Found"}
                             </Badge>
                           </div>
-                           <p className="text-sm text-muted-foreground px-3">{analysisResult.exif.summary}</p>
+                          <p className="text-sm text-muted-foreground px-3">{analysisResult.exif.summary}</p>
+                          <div className="space-y-2 px-3">
+                            {analysisResult.exif.fields.map(field => (
+                              <div key={field.label} className={cn("flex justify-between items-start text-sm p-2 rounded-md", field.suspicious && "bg-destructive/10")}>
+                                <div className="font-medium text-foreground">{field.label}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className={cn("text-muted-foreground", field.suspicious && "text-destructive font-medium")}>{field.value}</span>
+                                   <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className={cn("h-4 w-4 text-muted-foreground cursor-pointer", field.suspicious && "text-destructive")} />
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      <p>{field.explanation}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </AccordionContent>
                       </AccordionItem>
+
                     </Accordion>
                   </div>
                 )}
@@ -317,5 +344,6 @@ export default function Home() {
         </div>
       </main>
     </div>
+    </TooltipProvider>
   );
 }
