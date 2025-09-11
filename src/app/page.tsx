@@ -10,7 +10,8 @@ import {
   ShieldCheck,
   UploadCloud,
   X,
-  Info
+  Info,
+  Cpu
 } from "lucide-react";
 
 import { analyzeImage, type AnalysisResult } from "@/app/actions";
@@ -257,13 +258,19 @@ export default function Home() {
                             <span className="font-medium">Deepfake Detection</span>
                           </div>
                         </AccordionTrigger>
-                        <AccordionContent className="space-y-2 pt-2">
+                        <AccordionContent className="space-y-4 pt-2">
                            <div className="flex justify-between items-center px-3">
                             <span className="text-sm text-muted-foreground">Assessment</span>
                             <Badge variant={analysisResult.deepfake.isDeepfake ? "destructive" : "default"}>
-                              {analysisResult.deepfake.isDeepfake ? "Likely Deepfake" : "Likely Authentic"}
+                              {analysisResult.deepfake.isDeepfake ? "Likely AI-Generated" : "Likely Authentic"}
                             </Badge>
                           </div>
+                          {analysisResult.deepfake.isDeepfake && analysisResult.deepfake.identifiedModel && (
+                             <div className="flex justify-between items-center px-3">
+                              <span className="text-sm text-muted-foreground flex items-center gap-2"><Cpu className="h-4 w-4"/> Suspected AI Model</span>
+                              <Badge variant="outline">{analysisResult.deepfake.identifiedModel}</Badge>
+                            </div>
+                          )}
                           <p className="text-sm text-muted-foreground px-3 pt-2">{analysisResult.deepfake.explanation}</p>
                         </AccordionContent>
                       </AccordionItem>
