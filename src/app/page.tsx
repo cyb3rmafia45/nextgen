@@ -15,7 +15,7 @@ import {
   Mic,
 } from "lucide-react";
 
-import { analyzeImage, type AnalysisResult } from "@/app/actions";
+import { analyzeImage, analyzeUrl, type AnalysisResult } from "@/app/actions";
 import { AppLogo } from "@/components/app-logo";
 import OpeningAnimation from "@/components/opening-animation";
 import { TrustScoreGauge } from "@/components/trust-score-gauge";
@@ -100,48 +100,41 @@ export default function Home() {
   };
 
   const startAnalysis = async () => {
-    let dataUri: string | null = imageDataUri;
-
     if (inputType === 'url') {
       if (!url) {
         toast({ variant: 'destructive', title: 'URL required', description: 'Please enter a URL to analyze.' });
         return;
       }
-      // Simulate fetching and converting URL to data URI for analysis
-      // In a real scenario, this might be handled by the server action
+      setAnalysisState("analyzing");
       try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        if (!blob.type.startsWith('image/')) {
-            toast({ variant: 'destructive', title: 'Invalid URL Content', description: 'The URL does not point to a valid image.' });
-            return;
+        const result = await analyzeUrl(url);
+        setAnalysisResult(result);
+        if (result.photoDataUri) {
+          setImagePreview(result.photoDataUri);
+          setImageDataUri(result.photoDataUri);
         }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            dataUri = e.target?.result as string;
-            setImagePreview(dataUri);
-            setImageDataUri(dataUri);
-            analyze(dataUri);
-        };
-        reader.readAsDataURL(blob);
-        return; // analysis will be called in the reader.onload
+        setAnalysisState("results");
       } catch (error) {
-        toast({ variant: 'destructive', title: 'Failed to fetch URL', description: 'Could not fetch the image from the provided URL.' });
-        return;
+        console.error(error);
+        setAnalysisState("error");
+        toast({
+          variant: "destructive",
+          title: "Analysis Failed",
+          description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
+        });
+        resetState();
       }
+      return;
     }
     
-    if (!dataUri) {
-      toast({ variant: 'destructive', title: 'No image selected', description: 'Please upload an image or provide a URL.' });
+    if (!imageDataUri) {
+      toast({ variant: 'destructive', title: 'No image selected', description: 'Please upload an image.' });
       return;
     };
-    analyze(dataUri);
-  };
-
-  const analyze = async (dataUri: string) => {
+    
     setAnalysisState("analyzing");
     try {
-      const result = await analyzeImage(dataUri);
+      const result = await analyzeImage(imageDataUri);
       setAnalysisResult(result);
       setAnalysisState("results");
     } catch (error) {
@@ -154,7 +147,7 @@ export default function Home() {
       });
       resetState();
     }
-  }
+  };
 
   const resetState = useCallback(() => {
     setAnalysisState("idle");

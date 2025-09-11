@@ -20,6 +20,7 @@ export type AnalysisResult = {
   exif: { summary: string; suspicious: boolean };
   trustReport: GenerateTrustReportOutput;
   trustScore: number;
+  photoDataUri?: string;
 };
 
 // Mock ELA and EXIF data generation
@@ -61,9 +62,9 @@ const getMockExifResult = (): { summary: string; suspicious: boolean } => {
       };
 };
 
-export async function analyzeImage(
+async function performAnalysis(
   photoDataUri: string
-): Promise<AnalysisResult> {
+): Promise<Omit<AnalysisResult, "photoDataUri">> {
   // Run analyses in parallel
   const [deepfakeResult, contextualHistoryResult, elaResult, exifResult] =
     await Promise.all([
@@ -72,7 +73,7 @@ export async function analyzeImage(
       Promise.resolve(getMockElaResult()),
       Promise.resolve(getMockExifResult()),
     ]);
-  
+
   const deepfakeLikelihood = deepfakeResult.isDeepfake
     ? deepfakeResult.confidence
     : 1 - deepfakeResult.confidence;
@@ -88,7 +89,10 @@ export async function analyzeImage(
   // Calculate Trust Score
   let score = 100;
   score -= deepfakeLikelihood * 70; // Major penalty for deepfake likelihood
-  if (contextualHistoryResult.searchResults.includes("multiple websites") || contextualHistoryResult.searchResults.includes("stock photo")) {
+  if (
+    contextualHistoryResult.searchResults.includes("multiple websites") ||
+    contextualHistoryResult.searchResults.includes("stock photo")
+  ) {
     score -= 10;
   }
   if (elaResult.suspicious) {
@@ -107,4 +111,33 @@ export async function analyzeImage(
     trustReport: trustReportResult,
     trustScore,
   };
+}
+
+export async function analyzeImage(
+  photoDataUri: string
+): Promise<AnalysisResult> {
+  const analysis = await performAnalysis(photoDataUri);
+  return { ...analysis, photoDataUri };
+}
+
+export async function analyzeUrl(url: string): Promise<AnalysisResult> {
+  let photoDataUri: string;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image. Status: ${response.status}`);
+    }
+    const blob = await response.blob();
+    if (!blob.type.startsWith("image/")) {
+      throw new Error("URL does not point to a valid image.");
+    }
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    photoDataUri = `data:${blob.type};base64,${buffer.toString("base64")}`;
+  } catch (error) {
+    console.error("Error fetching URL for analysis:", error);
+    throw new Error("Could not fetch and process the image from the provided URL.");
+  }
+
+  const analysis = await performAnalysis(photoDataUri);
+  return { ...analysis, photoDataUri };
 }
