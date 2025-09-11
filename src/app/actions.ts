@@ -136,6 +136,9 @@ export async function analyzeUrl(url: string): Promise<AnalysisResult> {
     photoDataUri = `data:${contentType};base64,${buffer.toString("base64")}`;
   } catch (error) {
     console.error("Error fetching URL for analysis:", error);
+    if (error instanceof Error) {
+      throw new Error(`Could not fetch and process the image from the provided URL. Reason: ${error.message}`);
+    }
     throw new Error("Could not fetch and process the image from the provided URL.");
   }
 
