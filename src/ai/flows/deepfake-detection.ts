@@ -29,7 +29,7 @@ const DetectDeepfakeOutputSchema = z.object({
   explanation: z
     .string()
     .describe('Explanation of why the image is classified as deepfake or not.'),
-  identifiedModel: z.string().optional().describe('The AI model identified as being used to generate the image, if any (e.g., "Midjourney", "DALL-E", "Stable Diffusion").')
+  identifiedModel: z.string().optional().describe('The AI model identified as being used to generate the image, if any (e.g., "Midjourney", "DALL-E", "Stable Diffusion", "Pica AI").')
 });
 export type DetectDeepfakeOutput = z.infer<typeof DetectDeepfakeOutputSchema>;
 
@@ -53,7 +53,7 @@ const prompt = ai.definePrompt({
   - Watermarks or logos from AI image generation tools (e.g., DALL-E, Midjourney, Pica AI).
   - Signs of image morphing or face-swapping.
   
-  If you determine the image is AI-generated, try to identify the model or tool used (e.g., Midjourney, DALL-E, Stable Diffusion) and include it in the 'identifiedModel' field. Look for characteristic styles, artifacts, or watermarks.
+  If you determine the image is AI-generated, try to identify the model or tool used (e.g., Midjourney, DALL-E, Stable Diffusion, Pica AI) and include it in the 'identifiedModel' field. Look for characteristic styles, artifacts, or watermarks.
 
   If the image appears authentic, explain why. Be concise and specific in your explanation.
   `,
