@@ -95,13 +95,12 @@ export default function Home() {
       setAnalysisState("results");
     } catch (error) {
       console.error(error);
-      setAnalysisState("error");
+      setAnalysisState("idle");
       toast({
         variant: "destructive",
         title: "Analysis Failed",
         description: (error as Error).message || "An unexpected error occurred. Please try again.",
       });
-      resetState();
     }
   };
 
@@ -245,7 +244,7 @@ export default function Home() {
                       <div className="flex-1">
                         <h3 className="text-xl font-bold">AI Trust Report</h3>
                         <p className="text-muted-foreground mt-2">
-                          {analysisResult.trustReport.trustReport}
+                          {analysisResult.trustReport}
                         </p>
                       </div>
                     </div>

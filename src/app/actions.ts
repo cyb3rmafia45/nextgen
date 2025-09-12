@@ -1,17 +1,14 @@
 "use server";
 
-import {
-  contextualHistoryAnalysis,
-  type ContextualHistoryAnalysisOutput,
-} from "@/ai/flows/contextual-history-analysis";
-import {
-  detectDeepfake,
-  type DetectDeepfakeOutput,
-} from "@/ai/flows/deepfake-detection";
-import {
-  generateTrustReport,
-  type GenerateTrustReportOutput,
-} from "@/ai/flows/generate-trust-report";
+import { analyzeImage as analyzeImageFlow } from "@/ai/flows/analyze-image-flow";
+import type { AnalyzeImageOutput } from "@/ai/schemas";
+
+export type AnalysisResult = AnalyzeImageOutput & {
+  ela: { summary: string; suspicious: boolean };
+  exif: { summary: string; suspicious: boolean; fields: ExifField[] };
+  trustScore: number;
+  photoDataUri?: string;
+};
 
 type ExifField = {
   label: string;
@@ -20,16 +17,6 @@ type ExifField = {
   explanation: string;
 };
 
-
-export type AnalysisResult = {
-  deepfake: DetectDeepfakeOutput;
-  contextualHistory: ContextualHistoryAnalysisOutput;
-  ela: { summary: string; suspicious: boolean };
-  exif: { summary: string; suspicious: boolean; fields: ExifField[] };
-  trustReport: GenerateTrustReportOutput;
-  trustScore: number;
-  photoDataUri?: string;
-};
 
 // Mock ELA and EXIF data generation
 const getMockElaResult = (): { summary: string; suspicious: boolean } => {
@@ -95,33 +82,24 @@ const getMockExifResult = (): { summary: string; suspicious: boolean; fields: Ex
 async function performAnalysis(
   photoDataUri: string
 ): Promise<Omit<AnalysisResult, "photoDataUri">> {
-  // Run analyses in parallel
-  const [deepfakeResult, contextualHistoryResult, elaResult, exifResult] =
-    await Promise.all([
-      detectDeepfake({ photoDataUri }),
-      contextualHistoryAnalysis({ photoDataUri }),
-      Promise.resolve(getMockElaResult()),
-      Promise.resolve(getMockExifResult()),
-    ]);
+  
+  // Run all analyses in a single flow
+  const [aiResult, elaResult, exifResult] = await Promise.all([
+    analyzeImageFlow({ photoDataUri }),
+    Promise.resolve(getMockElaResult()),
+    Promise.resolve(getMockExifResult()),
+  ]);
 
-  const deepfakeLikelihood = deepfakeResult.isDeepfake
-    ? deepfakeResult.confidence
-    : 1 - deepfakeResult.confidence;
-
-  // Generate the final report
-  const trustReportResult = await generateTrustReport({
-    deepfakeLikelihood,
-    reverseImageSearchResults: contextualHistoryResult.summary,
-    elaResults: elaResult.summary,
-    exifData: exifResult.summary,
-  });
+  const deepfakeLikelihood = aiResult.deepfake.isDeepfake
+    ? aiResult.deepfake.confidence
+    : 1 - aiResult.deepfake.confidence;
 
   // Calculate Trust Score
   let score = 100;
   score -= deepfakeLikelihood * 70; // Major penalty for deepfake likelihood
   if (
-    contextualHistoryResult.summary.includes("multiple websites") ||
-    contextualHistoryResult.summary.includes("stock photo")
+    aiResult.contextualHistory.summary.includes("multiple websites") ||
+    aiResult.contextualHistory.summary.includes("stock photo")
   ) {
     score -= 10;
   }
@@ -134,12 +112,10 @@ async function performAnalysis(
   const trustScore = Math.max(0, Math.round(score));
 
   return {
-    deepfake: deepfakeResult,
-    contextualHistory: contextualHistoryResult,
+    ...aiResult,
+    trustScore,
     ela: elaResult,
     exif: exifResult,
-    trustReport: trustReportResult,
-    trustScore,
   };
 }
 
