@@ -99,7 +99,7 @@ export default function Home() {
       toast({
         variant: "destructive",
         title: "Analysis Failed",
-        description: "An unexpected error occurred. Please try again.",
+        description: (error as Error).message || "An unexpected error occurred. Please try again.",
       });
       resetState();
     }
