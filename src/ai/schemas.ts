@@ -46,6 +46,6 @@ export type AnalyzeImageInput = z.infer<typeof AnalyzeImageInputSchema>;
 export const AnalyzeImageOutputSchema = z.object({
   deepfake: DetectDeepfakeOutputSchema.describe('The results of the deepfake detection analysis.'),
   contextualHistory: ContextualHistoryAnalysisOutputSchema.describe('The results of the contextual history (reverse image search) analysis.'),
-  trustReport: z.string().describe('A human-readable report summarizing the trustworthiness of the media based on all available analysis results. This should be a concise summary suitable for a non-technical audience.'),
+  trustReport: z.string().describe('A human-readable report summarizing the trustworthiness of the media based on all available analysis results. This should be a concise summary for a non-technical audience.'),
 });
 export type AnalyzeImageOutput = z.infer<typeof AnalyzeImageOutputSchema>;
