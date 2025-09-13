@@ -122,6 +122,13 @@ async function performAnalysis(
 export async function analyzeImage(
   photoDataUri: string
 ): Promise<AnalysisResult> {
-  const analysis = await performAnalysis(photoDataUri);
-  return { ...analysis, photoDataUri };
+  try {
+    const analysis = await performAnalysis(photoDataUri);
+    return { ...analysis, photoDataUri };
+  } catch (error: any) {
+    // Re-throw a clean error to ensure the client receives a proper error message,
+    // even if the hosting environment (like Netlify) intercepts and mangles the original error response.
+    console.error("Analysis pipeline failed:", error);
+    throw new Error(error.message || "An unexpected response was received from the server.");
+  }
 }
